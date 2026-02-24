@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bread Manager AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loader { border-top-color: #3b82f6; animation: spinner 0.8s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        ::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.5; }
+    </style>
+</head>
+<body class="bg-[#0f172a] text-gray-100 min-h-screen p-4 md:p-8 font-sans">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+        <div class="lg:col-span-4 space-y-6">
+            <div class="bg-[#1e293b] p-7 rounded-[2.5rem] border border-gray-700/50 shadow-2xl sticky top-8">
+                <h2 class="text-xl font-bold mb-6 flex items-center tracking-tight">Input Produksi</h2>
+<div class="space-y-4">
+                    <input id="date" type="date" class="w-full bg-gray-900 border-none rounded-2xl p-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    <input id="name" type="text" placeholder="Nama Item" class="w-full bg-gray-900 border-none rounded-2xl p-4 outline-none">
+                    <input id="quantity" type="number" min="1" value="1" placeholder="Quantity" class="w-full bg-gray-900 border-none rounded-2xl p-4 outline-none">
+                    <input id="rev" type="number" placeholder="Harga Per Roti (Rp)" class="w-full bg-gray-900 border-none rounded-2xl p-4 outline-none">
+                    <input id="material" type="number" placeholder="Harga Pokok Produksi (Rp)" class="w-full bg-gray-900 border-none rounded-2xl p-4 outline-none">
+
+                    <button onclick="calculate()" id="btn-calc" class="w-full bg-blue-600 hover:bg-blue-700 py-4 rounded-[1.8rem] font-bold transition active:scale-95 shadow-lg shadow-blue-600/20 flex justify-center items-center">
+                        <span id="btn-text">Hitung & Analisis</span>
+                        <div id="loader" class="hidden loader rounded-full border-4 border-t-4 border-gray-400 h-6 w-6 ml-3"></div>
+                    </button>
+
+                    <div class="grid grid-cols-2 gap-3 pt-4 border-t border-gray-700/50">
+                        <a href="/export" class="bg-gray-800 hover:bg-gray-700 text-[10px] text-center py-3 rounded-2xl font-bold uppercase tracking-widest transition">Export File</a>
+                        <label class="bg-gray-800 hover:bg-gray-700 text-[10px] text-center py-3 rounded-2xl font-bold uppercase tracking-widest cursor-pointer transition">
+                            Import File
+                            <form action="/import" method="post" enctype="multipart/form-data" class="hidden">
+                                <input type="file" name="file" onchange="this.form.submit()">
+                            </form>
+                        </label>
+                    </div>
+
+                    <button onclick="window.location.href='/clear'" class="w-full text-gray-600 text-[9px] hover:text-red-400 font-black tracking-[0.3em] uppercase pt-2">Clear All Data</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-8 space-y-6">
+
+            <div id="result-area" class="hidden bg-gradient-to-br from-[#1e40af] to-[#1e293b] p-8 rounded-[3rem] border border-blue-400/30 relative shadow-2xl">
+                <button onclick="closeAnalysis()" class="absolute top-6 right-8 text-white/50 hover:text-white text-2xl">x</button>
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <p id="res-name" class="text-blue-200 font-medium mb-1"></p>
+                        <h1 id="res-profit" class="text-5xl font-black tracking-tighter"></h1>
+                        <p id="res-extra" class="text-xs text-blue-100 mt-3"></p>
+                    </div>
+                    <span id="res-margin" class="bg-blue-500 text-white px-5 py-2 rounded-2xl font-bold text-sm shadow-xl"></span>
+                </div>
+                <div class="bg-black/40 p-6 rounded-[2.2rem] border border-white/5 backdrop-blur-md">
+                    <p class="text-[10px] text-blue-300 font-black uppercase mb-3 tracking-widest">Saran AI Trinity:</p>
+                    <div id="res-advice" class="text-gray-100 text-sm leading-relaxed whitespace-pre-line"></div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <h3 class="text-xl font-bold px-4">Riwayat Produksi ({{ history_count }})</h3>
+
+                {% if grouped_history %}
+                    {% for group in grouped_history %}
+                    <div class="space-y-3">
+                        <h4 class="text-sm font-black uppercase tracking-[0.2em] text-blue-300 px-4">{{ group.month_label }}</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {% for item in group["items"] %}
+                            {% set laba = item.get('Laba', 0)|float %}
+                            <div class="group bg-[#1e293b] p-6 rounded-[2.2rem] border border-gray-700/50 hover:border-blue-500/40 transition-all cursor-pointer relative" onclick="this.querySelector('.detail').classList.toggle('hidden'); this.classList.toggle('md:col-span-2')">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-tighter">{{ item.get('Tanggal', '-') }}</p>
+                                        <h4 class="font-bold text-gray-200 text-lg tracking-tight">{{ item.get('Nama', 'Item') }}</h4>
+                                        <p class="text-[10px] text-gray-400 mt-1">Qty: {{ item.get('Quantity', 1) }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="font-black {{ 'text-red-500' if laba < 0 else 'text-green-400' }}">
+                                            Rp {{ "{:,.0f}".format(laba).replace(',', '.') }}
+                                        </p>
+                                        <a href="/delete/{{ item.get('ID') }}" class="text-[10px] text-red-500 opacity-0 group-hover:opacity-100 transition-opacity font-bold" onclick="event.stopPropagation()">HAPUS</a>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-400 italic truncate mt-2">{{ item.get('Advice', '')[:70] }}...</p>
+
+                                <div class="detail hidden mt-5 pt-5 border-t border-gray-700/50 text-sm text-gray-300">
+                                    <p class="mb-5 leading-relaxed">{{ item.get('Advice', '') }}</p>
+                                    <div class="grid grid-cols-4 gap-3 text-center text-[10px] font-bold">
+                                        <div class="bg-gray-900/50 p-3 rounded-2xl border border-white/5">
+                                            <p class="text-gray-500 mb-1 uppercase text-[8px]">Harga Jual</p>
+                                            <p class="text-blue-400">Rp {{ "{:,.0f}".format(item.get('HargaPerRoti', 0)|float).replace(',', '.') }}</p>
+                                        </div>
+                                        <div class="bg-gray-900/50 p-3 rounded-2xl border border-white/5">
+                                            <p class="text-gray-500 mb-1 uppercase text-[8px]">Harga Produksi</p>
+                                            <p class="text-yellow-400">Rp {{ "{:,.0f}".format(item.get('Material', 0)|float).replace(',', '.') }}</p>
+                                        </div>
+                                        <div class="bg-gray-900/50 p-3 rounded-2xl border border-white/5">
+                                            <p class="text-gray-500 mb-1 uppercase text-[8px]">Total Biaya</p>
+                                            <p class="text-red-400">Rp {{ "{:,.0f}".format(item.get('TotalBiaya', 0)|float).replace(',', '.') }}</p>
+                                        </div>
+                                        <div class="bg-gray-900/50 p-3 rounded-2xl border border-white/5">
+                                            <p class="text-gray-500 mb-1 uppercase text-[8px]">Qty</p>
+                                            <p class="text-green-300">{{ item.get('Quantity', 1) }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="bg-[#1e293b] border border-gray-700/50 rounded-3xl p-8 text-center text-gray-400">
+                        Belum ada data. Tambahkan input pertama untuk mulai tracking produksi.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('date').valueAsDate = new Date();
+
+        function closeAnalysis() {
+            document.getElementById('result-area').classList.add('hidden');
+            window.location.reload();
+        }
+
+        async function calculate() {
+            const btn = document.getElementById('btn-calc');
+            const loader = document.getElementById('loader');
+            const btnText = document.getElementById('btn-text');
+
+            loader.classList.remove('hidden');
+            btnText.innerText = "Menganalisis...";
+            btn.disabled = true;
+
+            const payload = {
+                date: document.getElementById('date').value,
+                name: document.getElementById('name').value,
+                quantity: document.getElementById('quantity').value,
+                rev: document.getElementById('rev').value,
+                material: document.getElementById('material').value
+            };
+
+            try {
+                const response = await fetch('/calculate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                const res = await response.json();
+
+                document.getElementById('result-area').classList.remove('hidden');
+                document.getElementById('res-name').innerText = "Hasil Analisis: " + res.name;
+                document.getElementById('res-profit').innerText = "Rp " + res.profit.toLocaleString('id-ID');
+                document.getElementById('res-margin').innerText = "Margin: " + res.margin.toFixed(1) + "%";
+                document.getElementById('res-extra').innerText = "Harga/Roti: Rp " + res.price_per_item.toLocaleString('id-ID') + " | Qty: " + res.quantity + " | Pendapatan: Rp " + res.revenue.toLocaleString('id-ID') + " | Total biaya: Rp " + res.total_cost.toLocaleString('id-ID');
+                document.getElementById('res-advice').innerText = res.advice;
+
+                document.getElementById('result-area').scrollIntoView({ behavior: 'smooth' });
+            } catch (e) {
+                alert("Gagal memproses data. Cek koneksi backend/API.");
+            } finally {
+                loader.classList.add('hidden');
+                btnText.innerText = "Hitung & Analisis";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
