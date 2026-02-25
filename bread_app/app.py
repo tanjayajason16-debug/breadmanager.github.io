@@ -11,7 +11,7 @@ app = Flask(__name__)
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 MODEL_NAME = "arcee-ai/trinity-large-preview:free"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CSV_FILE = os.path.normpath(os.path.join(BASE_DIR, "..", "data.csv"))
+CSV_FILE = os.path.join(BASE_DIR, "data.csv")
 CSV_HEADERS = [
     "ID",
     "Tanggal",
@@ -214,12 +214,12 @@ def calculate():
                         "messages": [{"role": "user", "content": prompt}],
                     }
                 ),
-                timeout=20,
+                timeout=8,
             )
             response.raise_for_status()
             advice = response.json()["choices"][0]["message"]["content"]
-        except Exception:
-            advice = "Saran AI tidak tersedia saat ini. Periksa koneksi internet atau API Key."
+        except Exception as e:
+            advice = f"ERROR: {str(e)}"
     else:
         advice = "OPENROUTER_API_KEY belum di-set. Jalankan app dengan API key di environment variable."
 
