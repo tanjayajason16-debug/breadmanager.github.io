@@ -8,7 +8,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_API_KEY = os.getenv(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)
 MODEL_NAME = "arcee-ai/trinity-large-preview:free"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, "data.csv")
@@ -298,6 +298,7 @@ def clear_all():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
 
 
